@@ -1,5 +1,5 @@
 # Perceptual evolution: How the spatially explicit interplay of biological and environmental factors shapes resource uptake #
-**Team members:** Anshuman Swain<sup>1,* </sup>, Tyler Hoffman<sup>1,* </sup>, Kirtus Leyba<sup>2,* </sup>, and William F Fagan<sup>1</sup>
+**Team members:** Anshuman Swain<sup>1,* </sup>, Tyler Hoffman<sup>1,* </sup>, Kirtus Leyba<sup>2 </sup>, and William F Fagan<sup>1</sup>
 
 <sup>1</sup>Department of Biology, University of Maryland, College Park, MD 20742, USA;
 <sup>2</sup>Biodesign Institute, Arizona State University, Tempe, AZ 85281, USA;
