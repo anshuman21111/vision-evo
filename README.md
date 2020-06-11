@@ -18,5 +18,10 @@ Focusing on the evolved distribution of perceptual radius, we observed a nonline
 
 ## Short Description of the files in this repository ##
 
-***Base scripts***
-(under construction)
+**Base scripts** 
+- `avg_sweeper.py`: Python wrapper code for easy parameter sweeps of `capped_energy_resc_refill.go`. The `Simulation` class is initialized by a given parameter sweep's parameters and contains all the methods needed to run, evaluate, and visualize the sweep. Sample workflow for all the plots in the paper is given in the code at the end. The class can be made to inherit from `Thread` for multithreading (currently not implemented, however). 
+- `capped_energy_resc_refill.go`: the base Go code to run the simulations. This is called by `avg_sweeper.py` repeatedly in parameter sweeps. Must be compiled locally before use; `avg_sweeper.py` expects the executable to be called `capped_energy_resc_refill.out` but this can be easily changed in the code. The setup is explained more in the paper.
+- `evolution_sim.py`: Python wrapper code for easy parameter sweeps of `vision_2pops.go`, similar to `avg_sweeper.py`. The functions after the `Simulation` class were written before the class was made, so the class simply invokes the functions rather than duplicating the code. Sample workflow is shown in the code at the end, along with some visualization code for a figure from the paper.
+- `vision_2pops.go`: the base Go code to run the two-population evolution verification simulations. This is called by `evolution_sim.py` repeatedly in the parameter sweeps. Must be compiled locally before use; `evolution_sim.py` expects the executable to be called `evolution_sim.out` but this can be easily changed in the code. The setup for these sweeps is explained more in the paper.
+- `sweeper.sh`: deprecated Bash code for parameter sweeps from earlier development stages.
+- `vision.go`, `vision_09182019.go`: deprecated Go code from earlier development stages.

@@ -192,6 +192,12 @@ def big_visualize(ranges, percents, filename):
         plt.show()
 
 if __name__ == '__main__':
+    # Sample workflow:
+    # ran1_MM_gL = Simulation([1.], np.arange(0, 102.5, 2.5), 'evolran1_gL', 5, ARGS)
+    # ran1_MM_gL.simulate()
+    # ran1_MM_gL.evaluate()
+    # ran1_MM_gL.visualize()
+    
     vistog = False
 
     ARGBASE = ['-growthRate']
