@@ -7,6 +7,7 @@ import concurrent.futures
 from pathlib import Path
 import seaborn as sns
 import matplotlib.pyplot as plt
+import ternary
 
 class Simulation:
     def __init__(self, filename, param, param_range, trials, ARGS=[]):
@@ -123,9 +124,25 @@ class Simulation:
         # Delete old (now summarized) data files
         for p in filenames: os.remove(f'data/{self.filename}/{self.filename}_{p}.csv')
     
+    def get_thres(self):
+        # Returns (threshold value, True/False) where the boolean 
+        # corresponds to whether or not this is an activation threshold.
+        # If there is no threshold, return None.
+
+        df = pd.read_csv(f'../data/{self.filename}/{self.filename}_{self.param}.csv')
+        qs = df.quantile([0.025, 0.25, 0.5, 0.75, 0.975]).values
+        
+        # Find where ranges get activated or deactivated
+        eps = np.finfo(float).eps #machine epsilon
+        for i in range(qs.shape[1] - 1):
+            if sum(qs[:,i]) < eps and sum(qs[:,i+1]) > eps:
+                return (self.param_range[i], True)
+            elif sum(qs[:,i]) > eps and sum(qs[:,i+1]) < eps:
+                return (self.param_range[i+1], False)
+        return None
 
     def visualize(self, mode='quantile', ax=None, title_str=None, ymax=None):
-        df = pd.read_csv(f'data/{self.filename}/{self.filename}_{self.param}.csv')
+        df = pd.read_csv(f'../data/{self.filename}/{self.filename}_{self.param}.csv')
         if mode == 'quantile':
             intervals = [0.025, 0.25, 0.5, 0.75, 0.975]
             qs = df.quantile(intervals)
@@ -168,7 +185,9 @@ class Simulation:
 
 
 if __name__ == "__main__":
+    active = False
     deactive = False
+    tern = True
     lst = ['energyQuant_rescDen1.5']
 
     if deactive: #basalEnergyCost and radiusCost in rescDensity
@@ -193,7 +212,7 @@ if __name__ == "__main__":
         fig.set_size_inches(15, 7)
         plt.savefig('deactivate.svg')
         plt.show()
-    else: #energyQuantity, growthRate, and maxMutate in rescDensity
+    elif active: #energyQuantity, growthRate, and maxMutate in rescDensity
         quant025 = Simulation('energyQuant_rescDen0.25', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '0.25'])
         quant075 = Simulation('energyQuant_rescDen0.75', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '0.75'])
         quant15 = Simulation('energyQuant_rescDen1.5', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '1.5'])
@@ -223,7 +242,20 @@ if __name__ == "__main__":
         fig.set_size_inches(15, 10.5)
         plt.savefig('activate.svg')
         plt.show()
+    elif tern: #unfinished ternary plotting capabilities
+        base075 = Simulation('basal1', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10)
+        
+        print(base075.get_thres())
+        base075.visualize()
+        """ fig, tax = ternary.figure()
 
+        tax.boundary(linewidth=2.0)
+        tax.gridlines(color="black")
+
+        tax.clear_matplotlib_ticks()
+        ternary.plt.show() """
+
+    # Uncomment the following to run in bulk
     """ for selector in lst:
         if selector == 'grate1':
             gRate = Simulation('grate1', 'growthRate', np.arange(0, 0.8, 0.05), 10)
