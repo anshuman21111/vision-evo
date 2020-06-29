@@ -7,6 +7,7 @@ import concurrent.futures
 from pathlib import Path
 import seaborn as sns
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 import ternary
 
 class Simulation:
@@ -54,13 +55,12 @@ class Simulation:
             # Delete old (now summarized) data files
             for t in range(self.trials): 
                 os.remove(f'data/{self.filename}/{self.filename}_{p:2.3f}_{t:d}.csv')
-            print(f'files removed for param {p}')
 
     def rad_simulate(self, param_range=[]):
         Path('data/' + self.filename).mkdir(parents=True, exist_ok=True)
         if param_range == []: param_range = self.param_range
-        for p in param_range:
-            temp_perc = np.empty((1,)) # create temp_perc accumulator array
+        for p in tqdm(param_range):
+            temp_perc = {}   # create temp_perc accumulator
             for t in range(self.trials): # run simulations (for Windows, change ".out" to ".exe")
                 call_str = ['./capped_energy_resc_refill.out', f'-{self.param}', f'{p:2.3f}'] + self.ARGS
                 outfile = open(f'data/{self.filename}/{self.filename}_{p:2.3f}_{t:d}.csv', 'w+')
@@ -68,7 +68,16 @@ class Simulation:
                 outfile.close()
 
                 # Evaluate all the trials into one file for the param value
-                temp_perc = np.append(temp_perc, np.asarray(self.__trial_loader(p, t)))
+                tr = self.__trial_loader(p, t)
+                if tr.empty: 
+                    temp_perc[f'{t:d}'] = np.array([0])
+                else:
+                    temp_perc[f'{t:d}'] = tr.values.flatten()
+
+            # Resize all lists
+            max_len = max([len(lst) for lst in temp_perc.values()])
+            for k, lst in temp_perc.items():
+                if max_len != len(lst): temp_perc[k] = np.append(lst, [np.nan]*(max_len - len(lst)))
 
             data_perc = pd.DataFrame(temp_perc)
             data_perc.to_csv(f'data/{self.filename}/{self.filename}_{p:2.3f}.csv', index=False)
@@ -76,26 +85,21 @@ class Simulation:
             # Delete old (now summarized) data files
             for t in range(self.trials): 
                 os.remove(f'data/{self.filename}/{self.filename}_{p:2.3f}_{t:d}.csv')
-            print(f'files removed for param {p}')
 
     def evaluate(self):
         col_names = ["%2.3f" % p for p in self.param_range]
-        data_perc = pd.DataFrame(columns=col_names)
-        curr_len = 0
+        temp_perc = {}
 
         for i in range(len(self.param_range)):
             agents = self.__eval_loader(self.param_range[i])     # get agents
-            temp_perc = np.asarray(agents)
+            temp_perc[i] = agents[agents.notna()].values.flatten()
 
-            # Adjust static matrix sizes
-            if len(temp_perc) > curr_len: 
-                curr_len = len(temp_perc)
-                data_perc = pd.DataFrame(np.resize(data_perc.values, (curr_len, len(self.param_range))))
-            elif len(temp_perc) < curr_len:
-                temp_perc = np.append(temp_perc, np.full((curr_len - len(temp_perc),1), np.nan), axis=0)
+        # Resize all lists
+        max_len = max([len(lst) for lst in temp_perc.values()])
+        for k, lst in temp_perc.items():
+            if max_len != len(lst): temp_perc[k] = np.append(lst, [np.nan]*(max_len - len(lst)))
 
-            data_perc[i] = temp_perc
-
+        data_perc = pd.DataFrame(temp_perc)
         data_perc.to_csv(f'data/{self.filename}/{self.filename}_{self.param}.csv', index=False)
     
         # Delete old (now summarized) data files
@@ -142,7 +146,7 @@ class Simulation:
         return None
 
     def visualize(self, mode='quantile', ax=None, title_str=None, ymax=None):
-        df = pd.read_csv(f'../data/{self.filename}/{self.filename}_{self.param}.csv')
+        df = pd.read_csv(f'./data/{self.filename}/{self.filename}_{self.param}.csv')
         if mode == 'quantile':
             intervals = [0.025, 0.25, 0.5, 0.75, 0.975]
             qs = df.quantile(intervals)
@@ -187,7 +191,7 @@ class Simulation:
 if __name__ == "__main__":
     active = False
     deactive = False
-    tern = True
+    tern = False
     lst = ['energyQuant_rescDen1.5']
 
     if deactive: #basalEnergyCost and radiusCost in rescDensity
@@ -254,6 +258,11 @@ if __name__ == "__main__":
 
         tax.clear_matplotlib_ticks()
         ternary.plt.show() """
+    else:
+        gather = Simulation('testme', 'energyQuantity', np.arange(0, 1.5, 0.1), 10)
+        gather.rad_simulate()
+        gather.evaluate()
+        gather.visualize()
 
     # Uncomment the following to run in bulk
     """ for selector in lst:

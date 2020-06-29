@@ -90,7 +90,7 @@ func main() {
 	verbose := *(verboseParam)
 	energyCap,_ := strconv.ParseFloat((*energyCapParam), 64)
 
-	if(verbose) {
+	if (verbose) {
 		fmt.Printf("# rescDensity: %f\n", rescDensity)
 		fmt.Printf("# rescPeriod: %d\n", rescPeriod)
 		fmt.Printf("# energyQuant: %f\n", energyQuant)
@@ -165,11 +165,11 @@ func main() {
 			hasClosestResource := false
 			resourceInGatherDist := false
 			closestDist := 0.0
-			if(len(resourceList) > 0) {
+			if (len(resourceList) > 0) {
 				for j:=0; j < len(resourceList); j++ {
 					r := resourceList[j]
 					d := euclidDist(a.X, a.Y, r.X, r.Y)
-					if(d < a.Radius && !hasClosestResource) {
+					if (d < a.Radius && !hasClosestResource) {
 						hasClosestResource = true
 						closestDist = d
 						closestResource = r
@@ -178,13 +178,13 @@ func main() {
 						closestResource = r
 					}
 				}
-				if(closestDist < gatherDist && hasClosestResource) {
+				if (closestDist < gatherDist && hasClosestResource) {
 					resourceInGatherDist = true
 				}
 			}
 			
 			// diffuse randomly if no nearby resource
-			if(!hasClosestResource) {
+			if (!hasClosestResource) {
 				theta := floatBetween(0.0, 2*math.Pi)
 				dx := a.Speed*math.Cos(theta)
 				dy := a.Speed*math.Sin(theta)
@@ -200,26 +200,26 @@ func main() {
 
 			// check agent position within bounds
 			// torus boundary condition
-			if(a.X < 0.0) {
+			if (a.X < 0.0) {
 				a.X = a.X + float64(width)
 			}
-			if(a.X >= float64(width)) {
+			if (a.X >= float64(width)) {
 				a.X = a.X - float64(width)
 			}
-			if(a.Y < 0.0) {
+			if (a.Y < 0.0) {
 				a.Y = a.Y + float64(height)
 			}
-			if(a.Y >= float64(height)) {
+			if (a.Y >= float64(height)) {
 				a.Y = a.Y - float64(height)
 			}
 
 
 			// gather if possible
-			if(resourceInGatherDist && a.Energy < energyCap) {
+			if (resourceInGatherDist && a.Energy < energyCap) {
 				amount := gatherAmount
-				if(closestResource.Quantity < gatherAmount) {
+				if (closestResource.Quantity < gatherAmount) {
 					amount = closestResource.Quantity
-					if(amount <= 0.0) {
+					if (amount <= 0.0) {
 						amount = 0.0
 					}
 				}
@@ -234,13 +234,13 @@ func main() {
 			a.Energy -= cost
 
 			// decide whether or not to reproduce
-			if(rand.Float64() < growthRate && a.Energy >= reproCost) {
+			if (rand.Float64() < growthRate && a.Energy >= reproCost) {
 				newAgent := Agent{}
 				newAgent.X = a.X + rand.Float64()*5.0 - 2.5
 				newAgent.Y = a.Y + rand.Float64()*5.0 - 2.5
 				newAgent.Energy = reproCost
 				newAgent.Radius = a.Radius + floatBetween(0.0, 2*maxMutate) - maxMutate
-				if(newAgent.Radius <= 0.0) {
+				if (newAgent.Radius <= 0.0) {
 					newAgent.Radius = 0.0
 				}
 				newAgent.Speed = a.Speed
@@ -260,7 +260,7 @@ func main() {
 		}
 		//add new agents
 		for i:=0; i < len(offSpringList); i++ {
-			if(len(temp) < maxPop) {
+			if (len(temp) < maxPop) {
 				temp = append(temp, offSpringList[i])
 				birthsCount[iter]++
 			}
@@ -279,28 +279,28 @@ func main() {
 			resc.X += dx
 			resc.Y += dy
 			//check boundaries
-			if(resc.X < 0.0) {
+			if (resc.X < 0.0) {
 				resc.X = resc.X + float64(width)
 			}
-			if(resc.X >= float64(width)) {
+			if (resc.X >= float64(width)) {
 				resc.X = resc.X - float64(width)
 			}
-			if(resc.Y < 0.0) {
+			if (resc.Y < 0.0) {
 				resc.Y = resc.Y + float64(height)
 			}
-			if(resc.Y >= float64(height)) {
+			if (resc.Y >= float64(height)) {
 				resc.Y = resc.Y - float64(height)
 			}
 
 
-			if(resourceList[i].Quantity > 0.0) {
+			if (resourceList[i].Quantity > 0.0) {
 				tempR = append(tempR, resourceList[i])
 				rescLeft += resourceList[i].Quantity
 			}
 		}
 		resourceList = tempR
 		// add new resources if neccessary
-		if(iter%rescPeriod == 0 && iter != 0) {
+		if (iter%rescPeriod == 0 && iter != 0) {
 			totalRescToAdd := initTotalRescQuant - rescLeft
 			rescToAdd := int(math.Floor(totalRescToAdd/energyQuant))
 			for i:=0; i < rescToAdd; i++ {
