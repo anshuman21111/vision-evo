@@ -163,6 +163,7 @@ class Simulation:
             plt.plot(self.param_range, qs.loc[0.5], color='black')
             plt.xlabel(self.param)
             plt.ylabel('Perceptual ranges at end time')
+            plt.title(f'Effect of {self.param} on perceptual ranges over time')
             plt.show()       
         elif mode == 'violin':
             sns.violinplot(data=df, bw=.1, inner=None, cut=0, scale='width')
@@ -189,10 +190,9 @@ class Simulation:
 
 
 if __name__ == "__main__":
-    active = False
+    active = True
     deactive = False
     tern = False
-    lst = ['energyQuant_rescDen1.5']
 
     if deactive: #basalEnergyCost and radiusCost in rescDensity
         base075 = Simulation('basal1', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10)
@@ -221,13 +221,13 @@ if __name__ == "__main__":
         quant075 = Simulation('energyQuant_rescDen0.75', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '0.75'])
         quant15 = Simulation('energyQuant_rescDen1.5', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '1.5'])
 
-        gRate075 = Simulation('grate1', 'growthRate', np.arange(0, 0.8, 0.05), 10)
-        gRate15 = Simulation('gRate2', 'growthRate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
-        gRate025 = Simulation('gRate3', 'growthRate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
+        gRate075 = Simulation('grate_rescDen0.75', 'growthRate', np.arange(0, 0.8, 0.05), 10)
+        gRate15 = Simulation('gRate_rescDen1.5', 'growthRate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
+        gRate025 = Simulation('gRate_rescDen0.25', 'growthRate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
 
-        maxmut075 = Simulation('maxmut1', 'maxMutate', np.arange(0, 0.8, 0.05), 10)
-        maxmut15 = Simulation('maxmut2', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
-        maxmut025 = Simulation('maxmut3', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
+        maxmut075 = Simulation('maxmut_rescDen0.75', 'maxMutate', np.arange(0, 0.8, 0.05), 10)
+        maxmut15 = Simulation('maxmut_rescDen1.5', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
+        maxmut025 = Simulation('maxmut_rescDen0.25', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
 
         fig, axes = plt.subplots(nrows=3, ncols=3)
         quant025.visualize(mode='figure', ax=axes[0,0], title_str='resourceDensity = 0.25', ymax=2.5)
@@ -259,10 +259,35 @@ if __name__ == "__main__":
         tax.clear_matplotlib_ticks()
         ternary.plt.show() """
     else:
-        gather = Simulation('testme', 'energyQuantity', np.arange(0, 1.5, 0.1), 10)
-        gather.rad_simulate()
-        gather.evaluate()
-        gather.visualize()
+        lst = ['gather', 'grate', 'maxmut']
+        for selector in lst:
+            if selector == 'gather':
+                gather = Simulation('energyQuant_rescDen0.25', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '0.25'])
+                gather.visualize()
+
+                gather = Simulation('energyQuant_rescDen0.75', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '0.75'])
+                gather.visualize()
+
+                gather = Simulation('energyQuant_rescDen1.5', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '1.5'])
+                gather.visualize()
+            elif selector == 'grate':
+                gRate = Simulation('grate_rescDen0.75', 'growthRate', np.arange(0, 0.8, 0.05), 10)
+                gRate.visualize()
+
+                gRate = Simulation('gRate_rescDen0.25', 'growthRate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
+                gRate.visualize()
+
+                gRate = Simulation('gRate_rescDen1.5', 'growthRate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
+                gRate.visualize()
+            elif selector == 'maxmut':
+                maxmut075 = Simulation('maxmut_rescDen0.75', 'maxMutate', np.arange(0, 0.8, 0.05), 10)
+                maxmut075.visualize()
+
+                maxmut15 = Simulation('maxmut_rescDen1.5', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
+                maxmut15.visualize()
+
+                maxmut025 = Simulation('maxmut_rescDen0.25', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
+                maxmut025.visualize()
 
     # Uncomment the following to run in bulk
     """ for selector in lst:
