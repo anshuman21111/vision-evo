@@ -8,7 +8,8 @@ from pathlib import Path
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import ternary
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+plt.rcParams.update({'font.size': 12})
 
 class Simulation:
     def __init__(self, filename, param, param_range, trials, ARGS=[]):
@@ -133,7 +134,7 @@ class Simulation:
         # corresponds to whether or not this is an activation threshold.
         # If there is no threshold, return None.
 
-        df = pd.read_csv(f'../data/{self.filename}/{self.filename}_{self.param}.csv')
+        df = pd.read_csv(f'./data/{self.filename}/{self.filename}_{self.param}.csv')
         qs = df.quantile([0.025, 0.25, 0.5, 0.75, 0.975]).values
         
         # Find where ranges get activated or deactivated
@@ -144,8 +145,84 @@ class Simulation:
             elif sum(qs[:,i]) > eps and sum(qs[:,i+1]) < eps:
                 return (self.param_range[i+1], False)
         return None
+    
+    def summarize(self):
+        # Read data file and get quantiles
+        df = pd.read_csv(f'./data/{self.filename}/{self.filename}_{self.param}.csv')
+        intervals = [0.025, 0.25, 0.5, 0.75, 0.975]
+        qs = df.quantile(intervals)
+        
+        # Rearrange data (response variables)
+        data = qs.transpose()
 
-    def visualize(self, mode='quantile', ax=None, title_str=None, ymax=None):
+        # Add explanatory variable columns
+        repi = None
+        radi = None
+        resi = None
+        grai = None
+        maxi = None
+        enei = None
+        basi = None
+        N = len(self.param_range)
+        o = np.ones((N,))
+
+        for i in range(len(self.ARGS)):
+            s = self.ARGS[i]
+            if 'reproCost' in s:       repi = i
+            if 'radiusCost' in s:      radi = i
+            if 'basalEnergyCost' in s: basi = i
+            if 'rescDensity' in s:     resi = i
+            if 'growthRate' in s:      grai = i
+            if 'maxMutate' in s:       maxi = i
+            if 'energyQuantity' in s:  enei = i
+
+        data.insert(0, f'{self.param}', self.param_range)
+
+        if self.param != 'rescDensity':
+            if resi is not None:
+                data.insert(0, 'rescDensity', float(self.ARGS[resi+1])*o)
+            else:
+                data.insert(0, 'rescDensity', 0.75*o)
+
+        if self.param != 'growthRate':
+            if grai is not None:
+                data.insert(0, 'growthRate', float(self.ARGS[grai+1])*o)
+            else:
+                data.insert(0, 'growthRate', 0.5*o)
+
+        if self.param != 'maxMutate':
+            if maxi is not None:
+                data.insert(0, 'maxMutate', float(self.ARGS[maxi+1])*o)
+            else:
+                data.insert(0, 'maxMutate', 0.25*o)
+        
+        if self.param != 'energyQuantity':
+            if enei is not None:
+                data.insert(0, 'energyQuantity', float(self.ARGS[enei+1])*o)
+            else:
+                data.insert(0, 'energyQuantity', o)
+        
+        if self.param != 'basalEnergyCost':
+            if basi is not None:
+                data.insert(0, 'basalEnergyCost', float(self.ARGS[basi+1])*o)
+            else:
+                data.insert(0, 'basalEnergyCost', 0.05*o)
+        
+        if self.param != 'radiusCost':
+            if radi is not None:
+                data.insert(0, 'radiusCost', float(self.ARGS[radi+1])*o)
+            else:
+                data.insert(0, 'radiusCost', 0.1*o)
+        
+        if self.param != 'reproCost':
+            if repi is not None:
+                data.insert(0, 'reproCost', float(self.ARGS[repi+1])*o)
+            else:
+                data.insert(0, 'reproCost', 0.5*o)
+
+        data.to_csv(f'./data/{self.filename}/summary.csv', index=False)
+
+    def visualize(self, mode='quantile', ax=None, title_str=None, rem_ticks=False, ymax=None):
         df = pd.read_csv(f'./data/{self.filename}/{self.filename}_{self.param}.csv')
         if mode == 'quantile':
             intervals = [0.025, 0.25, 0.5, 0.75, 0.975]
@@ -182,39 +259,88 @@ class Simulation:
             ax.fill_between(self.param_range, qs.loc[0.75], qs.loc[0.975], alpha=0.15)
 
             ax.plot(self.param_range, qs.loc[0.5], color='black')
-            ax.set_xlabel(self.param)
-            ax.set_ylabel('Perceptual ranges at end time')
+            ax.tick_params(axis='x', labelrotation=30)
+            if rem_ticks: ax.set_yticks([])
             if ymax is not None: ax.set_ylim(top=ymax)
             if title_str is not None: ax.set_title(title_str) 
         else: raise RuntimeError('mode not found, please enter \'quantile\', \'violin\', or \'figure\'')
 
+def make_heatmap(filebase, xparam, param_range, yparam='rescDensity', ax=None):
+    if yparam == 'rescDensity': 
+        fileparam = 'rescDen'
+        yticks = ['0.25', '0.75', '1.5']
+    elif yparam == 'growthRate': 
+        fileparam = 'gRate'
+        yticks = ['0.05', '0.5', '0.75']
+    else: raise ValueError('mode not found, enter \'rescDensity\' or \'growthRate\'')
+    
+    filenames = [filebase + '_' + fileparam + num for num in ['0.25', '0.75', '1.5']]
+    low = pd.read_csv(f'./data/{filenames[0]}/{filenames[0]}_{xparam}.csv')
+    med = pd.read_csv(f'./data/{filenames[1]}/{filenames[1]}_{xparam}.csv')
+    hi  = pd.read_csv(f'./data/{filenames[2]}/{filenames[2]}_{xparam}.csv')
+    dfs = [low, med, hi]
+
+    # Find where ranges are activated or deactivated
+    data = np.zeros((3, param_range.shape[0]))
+    for j in range(3):
+        data[j,:] = dfs[j].quantile([0.5]).values
+
+    show = False
+    if ax is None: 
+        ax = plt.axes()
+        show = True
+
+    im = ax.imshow(data, origin='lower')
+    ax.set_xlabel(xparam); ax.set_ylabel(yparam)
+    ax.set_xticks(range(len(param_range)))
+    ax.set_xticklabels(['%1.2f' % num for num in param_range]); 
+    ax.set_yticks(range(3)); ax.set_yticklabels(yticks)
+    
+    # Set colorbar size
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
+    if show: plt.show()
 
 if __name__ == "__main__":
-    active = True
+    active = False
     deactive = False
-    tern = False
+    hmap = True
+    make_csv = False
 
     if deactive: #basalEnergyCost and radiusCost in rescDensity
-        base075 = Simulation('basal1', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10)
+        base075 = Simulation('basal_grate0.5', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10)
         base025 = Simulation('basal_rescDen0.25', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
         base15 = Simulation('basal_rescDen1.5', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
         
-        radius075 = Simulation('rad1', 'radiusCost', np.arange(0, 2.1, 0.1), 10)
-        radius15 = Simulation('rad2', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-rescDensity', '1.5'])
-        radius025 = Simulation('rad3', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-rescDensity', '0.25'])
+        radius075 = Simulation('rad_rescDen0.75', 'radiusCost', np.arange(0, 2.1, 0.1), 10)
+        radius15 = Simulation('rad_rescDen1.5', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-rescDensity', '1.5'])
+        radius025 = Simulation('rad_rescDen0.25', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-rescDensity', '0.25'])
 
         fig, axes = plt.subplots(nrows=2, ncols=3)
-        base025.visualize(mode='figure', ax=axes[0,0], title_str='resourceDensity = 0.25', ymax=2)
-        base075.visualize(mode='figure', ax=axes[0,1], title_str='resourceDensity = 0.75', ymax=2)
-        base15.visualize(mode='figure', ax=axes[0,2], title_str='resourceDensity = 1.5', ymax=2)
+        ax = fig.add_subplot(111, frameon=False) #big overall subplot for labels
+        ax.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        ax.set_ylabel('Perceptual ranges at end time', fontsize=18)
+
+        bax = fig.add_subplot(211, frameon=False)
+        bax.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        bax.set_xlabel('basalEnergyCost', fontsize=18)
+
+        rax = fig.add_subplot(212, frameon=False)
+        rax.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        rax.set_xlabel('radiusCost', fontsize=18)
+
+        base025.visualize(mode='figure', ax=axes[0,0], ymax=2)
+        base075.visualize(mode='figure', ax=axes[0,1], ymax=2)
+        base15.visualize(mode='figure', ax=axes[0,2], ymax=2)
 
         radius025.visualize(mode='figure', ax=axes[1,0], ymax=2.65)
         radius075.visualize(mode='figure', ax=axes[1,1], ymax=2.65)
         radius15.visualize(mode='figure', ax=axes[1,2], ymax=2.65)
 
-        fig.suptitle('Deactivation parameters')
         fig.set_size_inches(15, 7)
-        plt.savefig('deactivate.svg')
+        plt.subplots_adjust(hspace=0.45, wspace=0.15)
+        plt.savefig('deactivate.png')
         plt.show()
     elif active: #energyQuantity, growthRate, and maxMutate in rescDensity
         quant025 = Simulation('energyQuant_rescDen0.25', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '0.25'])
@@ -230,34 +356,174 @@ if __name__ == "__main__":
         maxmut025 = Simulation('maxmut_rescDen0.25', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
 
         fig, axes = plt.subplots(nrows=3, ncols=3)
-        quant025.visualize(mode='figure', ax=axes[0,0], title_str='resourceDensity = 0.25', ymax=2.5)
-        quant075.visualize(mode='figure', ax=axes[0,1], title_str='resourceDensity = 0.75', ymax=2.5)
-        quant15.visualize(mode='figure', ax=axes[0,2], title_str='resourceDensity = 1.5', ymax=2.5)
+        ax = fig.add_subplot(111, frameon=False) #big overall subplot for labels
+        ax.spines['top'].set_color('none')
+        ax.spines['bottom'].set_color('none')
+        ax.spines['left'].set_color('none')
+        ax.spines['right'].set_color('none')
+        ax.set_xticks([]); ax.set_yticks([])
+        ax.set_ylabel('Perceptual ranges at end time', labelpad=50, fontsize=18)
+
+        eax = fig.add_subplot(311, frameon=False)
+        eax.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        eax.set_xlabel('energyQuantity', labelpad=10, fontsize=18)
+
+        gax = fig.add_subplot(312, frameon=False)
+        gax.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        gax.set_xlabel('growthRate', labelpad=10, fontsize=18)
+
+        mmx = fig.add_subplot(313, frameon=False)
+        mmx.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        mmx.set_xlabel('maxMutate', labelpad=10, fontsize=18)
+
+        quant025.visualize(mode='figure', ax=axes[0,0], ymax=2.5)
+        quant075.visualize(mode='figure', ax=axes[0,1], ymax=2.5, rem_ticks=True)
+        quant15.visualize(mode='figure', ax=axes[0,2], ymax=2.5, rem_ticks=True)
 
         gRate025.visualize(mode='figure', ax=axes[1,0], ymax=2.5)
-        gRate075.visualize(mode='figure', ax=axes[1,1], ymax=2.5)
-        gRate15.visualize(mode='figure', ax=axes[1,2], ymax=2.5)
+        gRate075.visualize(mode='figure', ax=axes[1,1], ymax=2.5, rem_ticks=True)
+        gRate15.visualize(mode='figure', ax=axes[1,2], ymax=2.5, rem_ticks=True)
 
         maxmut025.visualize(mode='figure', ax=axes[2,0], ymax=3)
-        maxmut075.visualize(mode='figure', ax=axes[2,1], ymax=3)
-        maxmut15.visualize(mode='figure', ax=axes[2,2], ymax=3)
+        maxmut075.visualize(mode='figure', ax=axes[2,1], ymax=3, rem_ticks=True)
+        maxmut15.visualize(mode='figure', ax=axes[2,2], ymax=3, rem_ticks=True)
 
-        fig.suptitle('Activation parameters')
         fig.set_size_inches(15, 10.5)
-        plt.savefig('activate.svg')
+        plt.subplots_adjust(hspace=0.45, wspace=0.15)
+        plt.savefig('activate.png')
         plt.show()
-    elif tern: #unfinished ternary plotting capabilities
-        base075 = Simulation('basal1', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10)
+    elif hmap: 
+        _, (ax1, ax2) = plt.subplots(figsize=(9.6,4.5), nrows=2)#, gridspec_kw={'height_ratios': [1, 1]})
+        make_heatmap('basal', 'basalEnergyCost', np.arange(0, 0.8, 0.05), ax=ax1)
+        make_heatmap('rad', 'radiusCost', np.arange(0, 2.1, 0.1), ax=ax2)
+        plt.suptitle('Mean distribution values, deactivation parameters')
+        plt.savefig('../pics/paper_plots/deactive_means.pdf')
+        plt.show()
+
+        _, (ax1, ax2, ax3) = plt.subplots(figsize=(9,6.5), nrows=3)#, gridspec_kw={'height_ratios': [1, 1, 1]})
+        make_heatmap('energyQuant', 'energyQuantity', np.arange(0, 1.5, 0.1), ax=ax1)
+        make_heatmap('grate', 'growthRate', np.arange(0, 0.8, 0.05), ax=ax2)
+        make_heatmap('maxmut', 'maxMutate', np.arange(0, 0.8, 0.05), ax=ax3)
+        plt.suptitle('Mean distribution values, activation parameters')
+        plt.savefig('../pics/paper_plots/active_means.pdf')
+        plt.show()
+    elif make_csv:
+        base = Simulation('basal_rescDen0.25', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
+        base.summarize()
+
+        base = Simulation('basal_rescDen1.5', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
+        base.summarize()
+
+        base = Simulation('basal_grate0.5', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-growthRate', '0.5'])
+        base.summarize()
         
-        print(base075.get_thres())
-        base075.visualize()
-        """ fig, tax = ternary.figure()
+        base = Simulation('basal_grate0.75', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-growthRate', '0.75'])
+        base.summarize()
 
-        tax.boundary(linewidth=2.0)
-        tax.gridlines(color="black")
+        base = Simulation('basal_grate0.05', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-growthRate', '0.05'])
+        base.summarize()
 
-        tax.clear_matplotlib_ticks()
-        ternary.plt.show() """
+        base = Simulation('basal_grate0.5', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-growthRate', '0.5'])
+        base.summarize()
+        
+        base = Simulation('basal_grate0.75', 'basalEnergyCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-growthRate', '0.75'])
+        base.summarize()
+
+        gather = Simulation('energyQuant_grate0.05', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-growthRate', '0.05'])
+        gather.summarize()
+
+        gather = Simulation('energyQuant_grate0.5', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-growthRate', '0.5'])
+        gather.summarize()
+        
+        gather = Simulation('energyQuant_grate0.75', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-growthRate', '0.75'])
+        gather.summarize()
+
+        gather = Simulation('energyQuant_rescDen0.25', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '0.25'])
+        gather.summarize()
+
+        gather = Simulation('energyQuant_rescDen0.75', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '0.75'])
+        gather.summarize()
+        
+        gather = Simulation('energyQuant_rescDen1.5', 'energyQuantity', np.arange(0, 1.5, 0.1), 10, ARGS=['-rescDensity', '1.5'])
+        gather.summarize()
+        
+        gRate = Simulation('grate_rescDen0.75', 'growthRate', np.arange(0, 0.8, 0.05), 10)
+        gRate.summarize()
+        
+        gRate = Simulation('gRate_rescDen0.25', 'growthRate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
+        gRate.summarize()
+        
+        gRate = Simulation('gRate_rescDen1.5', 'growthRate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
+        gRate.summarize()
+
+        maxmut075 = Simulation('maxmut_grate0.05', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-growthRate', '0.05'])
+        maxmut075.summarize()
+
+        maxmut075 = Simulation('maxmut_grate0.5', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-growthRate', '0.5'])
+        maxmut075.summarize()
+
+        maxmut075 = Simulation('maxmut_grate0.75', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-growthRate', '0.75'])
+        maxmut075.summarize()
+        
+        maxmut15 = Simulation('maxmut_rescDen1.5', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
+        maxmut15.summarize()
+
+        maxmut025 = Simulation('maxmut_rescDen0.25', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
+        maxmut025.summarize()
+        
+        maxmut075 = Simulation('maxmut_rescDen0.75', 'maxMutate', np.arange(0, 0.8, 0.05), 10)
+        maxmut075.summarize()
+
+        rad = Simulation('maxmut_rescDen0.25', 'maxMutate', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
+        rad.summarize()
+
+        radius = Simulation('rad_grate0.75', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-growthRate', '0.75'])
+        radius.summarize()
+
+        radius = Simulation('rad_grate0.05', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-growthRate', '0.05'])
+        radius.summarize()
+
+        radius = Simulation('rad_grate0.5', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-growthRate', '0.5'])
+        radius.summarize()
+
+        radius = Simulation('rad_rescDen0.75', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-rescDensity', '0.75'])
+        radius.summarize()
+
+        radius = Simulation('rad_rescDen0.25', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-rescDensity', '0.25'])
+        radius.summarize()
+
+        radius = Simulation('rad_rescDen1.5', 'radiusCost', np.arange(0, 2.1, 0.1), 10, ARGS=['-rescDensity', '1.5'])
+        radius.summarize()
+
+        repro = Simulation('repro_rescDen0.25', 'reproCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.25'])
+        repro.summarize()
+
+        repro = Simulation('repro_rescDen0.75', 'reproCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.75'])
+        repro.summarize()
+
+        repro = Simulation('repro_rescDen1.5', 'reproCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '1.5'])
+        repro.summarize()
+
+        repro = Simulation('repro_grate0.05', 'reproCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.05'])
+        repro.summarize()
+
+        repro = Simulation('repro_grate0.5', 'reproCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.5'])
+        repro.summarize()
+
+        repro = Simulation('repro_grate0.75', 'reproCost', np.arange(0, 0.8, 0.05), 10, ARGS=['-rescDensity', '0.75'])
+        repro.summarize()
+
+        stubs = ['basal_rescDen0.25', 'basal_rescDen1.5', 'basal_grate0.5', 'basal_grate0.75', \
+            'basal_grate0.05', 'basal_grate0.5', 'basal_grate0.75', \
+            'energyQuant_rescDen0.25', 'energyQuant_rescDen0.75', 'energyQuant_rescDen1.5', \
+            'gRate_rescDen0.25', 'grate_rescDen0.75', 'gRate_rescDen1.5', 'maxmut_rescDen0.25', \
+            'maxmut_rescDen0.75', 'maxmut_rescDen1.5', 'maxmut_grate0.05', 'maxmut_grate0.5', \
+            'maxmut_grate0.75', 'rad_grate0.05', 'rad_grate0.75', 'rad_grate0.5', 'rad_rescDen0.75', \
+            'rad_rescDen0.25', 'rad_rescDen1.5', 'repro_rescDen0.25', 'repro_rescDen0.75', \
+            'repro_grate0.05', 'repro_grate0.5', 'repro_grate0.75']
+        filenames = ['./data/' + stub + '/summary.csv' for stub in stubs]
+        combined_df = pd.concat([pd.read_csv(f) for f in filenames])
+        combined_df.to_csv('./data/activation_summary.csv')
     else:
         lst = ['gather', 'grate', 'maxmut']
         for selector in lst:
